@@ -6,10 +6,13 @@
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
-    "target": "es2021"
+    "target": "es2021",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node",
+    "baseUrl": "."
   },
   "compileOnSave": true,
-  "include": [
-    "src"
-  ]
+  "include": ["src/server.ts"]
 }
