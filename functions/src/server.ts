@@ -16,8 +16,39 @@ console.log("SERVER START");
 
 try {
   if (!admin.apps.length) {
-    admin.initializeApp();
-    console.log("Firebase Admin SDK initialized successfully");
+    const serviceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    if (serviceAccountRaw && serviceAccountRaw.trim()) {
+      try {
+        let serviceAccountStr = serviceAccountRaw.trim();
+        if (!serviceAccountStr.startsWith('{')) {
+          try {
+            const decoded = Buffer.from(serviceAccountStr, 'base64').toString('utf8').trim();
+            if (decoded.startsWith('{')) {
+              serviceAccountStr = decoded;
+            }
+          } catch (_) {
+            // ignore base64 decode failure
+          }
+        }
+
+        const serviceAccount = JSON.parse(serviceAccountStr);
+        if (serviceAccount.private_key && typeof serviceAccount.private_key === 'string') {
+          serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+        }
+
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+          projectId: serviceAccount.project_id || undefined
+        });
+        console.log("Firebase Admin SDK initialized with Service Account JSON for project:", serviceAccount.project_id);
+      } catch (parseErr) {
+        console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT JSON, falling back to default:", parseErr);
+        admin.initializeApp();
+      }
+    } else {
+      admin.initializeApp();
+      console.log("Firebase Admin SDK initialized with default application credentials");
+    }
   }
 } catch (error) {
   console.error("Firebase Admin initialization error:", error);

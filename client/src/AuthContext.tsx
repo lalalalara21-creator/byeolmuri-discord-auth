@@ -120,19 +120,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       try {
-        const functionsInstance = getFunctions();
-        const callDiscordCallback = httpsCallable<{ code: string; redirectUri: string }, { success: boolean; customToken: string }>(
-          functionsInstance,
-          'discordAuthCallback'
-        );
-
         const redirectUri = window.location.origin + '/auth/discord/callback';
-        const result = await callDiscordCallback({ code, redirectUri });
-        
-        if (result.data?.success && result.data?.customToken) {
-          await signInWithCustomToken(auth, result.data.customToken);
+        const railwayApiUrl = (import.meta as any).env?.VITE_RAILWAY_AUTH_URL || 'https://byeolmuri-discord-auth-production.up.railway.app/api/auth/discord';
+
+        let customToken = '';
+
+        try {
+          // Attempt HTTP POST to Railway Auth Server first
+          const response = await fetch(railwayApiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, redirectUri }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.customToken) {
+              customToken = data.customToken;
+            } else {
+              throw new Error(data.error || 'Token response missing customToken');
+            }
+          } else {
+            const errJson = await response.json().catch(() => ({}));
+            throw new Error(errJson.error || `HTTP ${response.status}`);
+          }
+        } catch (httpErr: any) {
+          console.warn('Railway Auth API request failed or not reachable, falling back to Firebase Functions callable:', httpErr);
+          
+          // Fallback to Firebase Functions callable
+          const functionsInstance = getFunctions();
+          const callDiscordCallback = httpsCallable<{ code: string; redirectUri: string }, { success: boolean; customToken: string }>(
+            functionsInstance,
+            'discordAuthCallback'
+          );
+          const result = await callDiscordCallback({ code, redirectUri });
+          if (result.data?.success && result.data?.customToken) {
+            customToken = result.data.customToken;
+          } else {
+            throw new Error('No custom token returned from Firebase Functions');
+          }
+        }
+
+        if (customToken) {
+          await signInWithCustomToken(auth, customToken);
         } else {
-          throw new Error('No custom token returned');
+          throw new Error('커스텀 토큰을 발급받지 못했습니다.');
         }
       } catch (err: any) {
         console.error('Discord callback sign-in failed:', err);

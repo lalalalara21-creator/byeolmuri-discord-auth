@@ -1,0 +1,5 @@
+{
+  "start": {
+    "cmd": "node functions/lib/server.js"
+  }
+}

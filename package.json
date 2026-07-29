@@ -2,10 +2,11 @@
   "name": "byeolmuri-discord-auth",
   "version": "1.0.0",
   "description": "Discord OAuth Authentication Module for Byeolmuri",
+  "main": "functions/lib/server.js",
   "private": true,
   "scripts": {
     "build": "npm --prefix functions run build",
-    "deploy:functions": "firebase deploy --only functions:discordAuthCallback"
+    "start": "node functions/lib/server.js"
   },
   "devDependencies": {
     "typescript": "^5.0.0"
