@@ -9,7 +9,7 @@ process.on("unhandledRejection", (reason) => {
 import express, { Request, Response, Router } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 import * as admin from 'firebase-admin';
 
 console.log("SERVER START");
@@ -64,7 +64,7 @@ const authRouter = Router();
 authRouter.get('/discord', (req: Request, res: Response) => {
   try {
     const clientId = process.env.DISCORD_CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID || '1528735887125385346';
-    const redirectUri = process.env.DISCORD_REDIRECT_URI || 'https://service-846179397596.us-west1.run.app/auth/discord/callback';
+    const redirectUri = process.env.DISCORD_REDIRECT_URI || 'https://byeolmuri-discord-auth-production.up.railway.app/auth/discord/callback';
 
     // Generate random state
     const state = crypto.randomBytes(16).toString('hex');
@@ -109,7 +109,7 @@ authRouter.get('/discord/callback', async (req: Request, res: Response): Promise
 
     const clientId = process.env.DISCORD_CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID || '1528735887125385346';
     const clientSecret = process.env.DISCORD_CLIENT_SECRET || '';
-    const redirectUri = process.env.DISCORD_REDIRECT_URI || 'https://service-846179397596.us-west1.run.app/auth/discord/callback';
+    const redirectUri = process.env.DISCORD_REDIRECT_URI || 'https://byeolmuri-discord-auth-production.up.railway.app/auth/discord/callback';
 
     if (!clientSecret) {
       res.status(400).json({ error: 'DISCORD_CLIENT_SECRET is missing in environment variables' });
