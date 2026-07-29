@@ -1,4 +1,3 @@
-// Force latest Railway build
 process.on("uncaughtException", (err) => {
   console.error("uncaughtException:", err);
 });
@@ -183,13 +182,44 @@ authRouter.get('/discord/callback', async (req: Request, res: Response): Promise
       avatarURL = `https://cdn.discordapp.com/embed/avatars/${defaultAvatarIndex}.png`;
     }
 
-    // Return required JSON response
-    res.json({
-      success: true,
-      discordId: discordUser.id,
-      username: discordUser.username,
-      avatar: avatarURL,
-    });
+    // 1. Create UID in format `discord:${discordUser.id}`
+    const uid = `discord:${discordUser.id}`;
+
+    // 2. Generate Firebase Custom Token using Firebase Admin SDK
+    let customToken = '';
+    try {
+      customToken = await admin.auth().createCustomToken(uid, {
+        discordId: discordUser.id,
+        username: discordUser.username || discordUser.global_name || '',
+        avatar: avatarURL,
+      });
+    } catch (tokenErr: any) {
+      console.error('Error creating custom token:', tokenErr);
+      res.status(500).json({ error: `Failed to create custom token: ${tokenErr?.message || tokenErr}` });
+      return;
+    }
+
+    // 3. Create or update Firestore user document
+    try {
+      await admin.firestore().collection('users').doc(discordUser.id).set({
+        discordId: discordUser.id,
+        username: discordUser.username || discordUser.global_name || '',
+        displayName: discordUser.global_name || discordUser.username || '',
+        avatar: avatarURL,
+        email: discordUser.email || '',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+    } catch (fsErr) {
+      console.error('Firestore user save warning:', fsErr);
+    }
+
+    // 4. Redirect to Frontend callback URL with custom token
+    const defaultFrontendUrl = process.env.APP_URL ? `${process.env.APP_URL.replace(/\/$/, '')}/auth/callback` : 'https://service-846179397596.us-west1.run.app/auth/callback';
+    const frontendCallbackUrl = process.env.FRONTEND_CALLBACK_URL || defaultFrontendUrl;
+    const redirectUrl = `${frontendCallbackUrl}?token=${encodeURIComponent(customToken)}`;
+
+    res.redirect(redirectUrl);
   } catch (error: any) {
     console.error('Error in GET /auth/discord/callback:', error);
     res.status(500).json({ error: error?.message || 'Internal server error during Discord OAuth callback' });
